@@ -1,0 +1,4 @@
+venv/
+processed/
+reference/
+__pycache__/

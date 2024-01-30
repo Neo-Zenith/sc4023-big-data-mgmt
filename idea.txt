@@ -1,0 +1,2 @@
+1. Read CSV line by line, store separate columns in a TXT/binary file (split every ZONE_MAP_SIZE)
+2. Store information related to zones in zone_map 
