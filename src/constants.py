@@ -2,19 +2,17 @@ STATISTIC_TYPE = {
     'MIN_AREA', 'AVG_AREA', 'STD_AREA', 'MIN_PRICE', 'AVG_PRICE', 'STD_PRICE'
 }
 
-ZONE_MAP_SIZE = 25000
-
 TOWN_MAPPING = {
-    '0': 'ANG MO KIO',
-    '1': 'BEDOK',
-    '2': 'BUKIT BATOK',
-    '3': 'CLEMENTI',
-    '4': 'CHOA CHU KANG',
-    '5': 'HOUGANG',
-    '6': 'JURONG WEST',
-    '7': 'PUNGGOL',
-    '8': 'WOODLANDS',
-    '9': 'YISHUN'
+    'ANG MO KIO': 0,
+    'BEDOK': 1,
+    'BUKIT BATOK': 2,
+    'CLEMENTI': 3,
+    'CHOA CHU KANG': 4,
+    'HOUGANG': 5,
+    'JURONG WEST': 6,
+    'PUNGGOL': 7,
+    'WOODLANDS': 8,
+    'YISHUN': 9
 }
 
 INPUT_PATH = 'data/ResalePricesSingapore.csv'
