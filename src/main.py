@@ -1,39 +1,39 @@
 import os
 import csv
-import struct
 from typing import Dict, List
 
 MAX_FILE_LINES = 40000
 
 
 class ColumnStore:
-    def __init__(self, csv_file_path, output_folder, columns_of_interest: List[str], max_file_lines=MAX_FILE_LINES):
+    def __init__(self, csv_file_path: str, output_folder: str, columns_of_interest: List[str], max_file_lines=MAX_FILE_LINES):
         self.csv_file_path = csv_file_path
         self.output_folder = output_folder
         self.columns_of_interest = columns_of_interest
         self.max_file_lines = max_file_lines
         self.zone_maps: Dict[str, List[ZoneMap]] = {}
 
-        # Initialize ZoneMap for interested columns
+        # initialize ZoneMap for interested columns
         for column_name in columns_of_interest:
             self.zone_maps[column_name] = []
 
     def process_csv(self):
-        chunk_count = 0
-        idx = 0
+        idx = 0  # line index
+        zone_count = 0
         opened_files = {}
 
         with open(self.csv_file_path, 'r', newline='', encoding='utf-8') as csv_file:
             reader = csv.DictReader(csv_file)
-            for row_count, row in enumerate(reader, start=1):
+            for _, row in enumerate(reader, start=1):
+                # new zone -> create file and update min index
                 if idx % self.max_file_lines == 0:
                     for col_name in self.columns_of_interest:
                         opened_files[col_name] = open(os.path.join(
-                            self.output_folder, f"{col_name}_chunk_{chunk_count}.txt"), 'w')
+                            self.output_folder, f"{col_name}_chunk_{zone_count}.txt"), 'w')
                         self.zone_maps[col_name].append(
-                            ZoneMap(col_name, chunk_count))
+                            ZoneMap(col_name, zone_count))
                         self.zone_maps[col_name][-1].set_min_idx(idx)
-                        chunk_count += 1
+                    zone_count += 1
 
                 for column_name in self.columns_of_interest:
                     value = row[column_name]
@@ -44,7 +44,7 @@ class ColumnStore:
                     if column_name == 'month':
                         self.zone_maps[column_name][-1].update_month(value)
 
-                # Close the current files and open a new one
+                # end of zone -> close the current files and update max index
                 if idx % self.max_file_lines == self.max_file_lines - 1:
                     for col_name in self.columns_of_interest:
                         opened_files[col_name].close()
@@ -52,7 +52,7 @@ class ColumnStore:
 
                 idx += 1
 
-        # Close the last set of files
+        # close the last set of files and update max index
         for col_name in self.columns_of_interest:
             opened_files[col_name].close()
             self.zone_maps[col_name][-1].set_max_idx(idx)
@@ -62,9 +62,9 @@ class ColumnStore:
 
 
 class ZoneMap:
-    def __init__(self, column_name, chunk_count):
+    def __init__(self, column_name, zone_count):
         self.column_name = column_name
-        self.chunk_count = chunk_count
+        self.zone_count = zone_count
         self.data = {
             'min_idx': float('inf'),
             'max_idx': float('-inf'),
