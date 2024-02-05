@@ -1,4 +1,5 @@
 venv/
 processed/
+temp/
 reference/
 __pycache__/
