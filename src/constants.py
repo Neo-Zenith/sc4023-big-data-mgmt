@@ -1,17 +1,12 @@
-STATISTIC_TYPE = {
-    'MIN_AREA', 'AVG_AREA', 'STD_AREA', 'MIN_PRICE', 'AVG_PRICE', 'STD_PRICE'
-}
-
 MAX_FILE_LINES = 40000
 INPUT_PATH = 'data/ResalePricesSingapore.csv'
 DISK_FOLDER = 'processed'
+OUTPUT_FOLDER = 'output'
 
-""" 
-467B 
--> 1st digit: town
--> 2nd digit: starting month
--> 3rd digit: year
-"""
+
+STATISTIC_TYPE = {
+    1: 'MIN_AREA', 2: 'AVG_AREA', 3: 'STD_AREA', 4: 'MIN_PRICE', 5: 'AVG_PRICE', 6: 'STD_PRICE'
+}
 
 TOWN_MAPPING = {
     'ANG MO KIO': 0,

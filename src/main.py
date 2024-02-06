@@ -1,7 +1,9 @@
 import os
 import csv
+import statistics
+import time
+from constants import DISK_FOLDER, INPUT_PATH, STATISTIC_TYPE, TOWN_MAPPING, MAX_FILE_LINES
 from typing import Dict, List
-from constants import DISK_FOLDER, INPUT_PATH, TOWN_MAPPING, MAX_FILE_LINES
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -57,7 +59,8 @@ class ColumnStore:
                         self.zone_maps[column_name][-1].update_zone_map(
                             value)
                     elif column_name == 'month':
-                        self.zone_maps[column_name][-1].update_zone_map(value)
+                        self.zone_maps[column_name][-1].update_zone_map(
+                            value)
 
                     file = opened_files[column_name]
                     file.write(f"{value}\n")
@@ -134,10 +137,11 @@ class QueryProcessor:
         self.column_store = column_store
         self.buffer_folder = 'temp'
         self.num_buffer_folders = 0
+        self.data = []
 
     def process_year_and_month(self, column_name: ColumnsOfInterest = 'month'):
-        print("=" * 60)
-        print(f"Processing year and month...")
+        print("\n" + "=" * 60)
+        print("Processing year and month...")
         zone_maps = self.column_store.get_zone_maps()
         zone_map_arr = zone_maps[column_name]
         start_value = f"{self.year}-{self.month:02}"
@@ -157,11 +161,11 @@ class QueryProcessor:
                 self.process_split_files(
                     column_name, zone_count, start_value, end_value)
 
-    def process_towns(self, column_name='town'):
-        print("=" * 60)
-        print(f"Processing towns...")
+    def process_towns(self, column_name: ColumnsOfInterest = 'town'):
+        print("\n" + "=" * 60)
+        print("Processing towns...")
 
-        # Read the indexes from the previous month's temp folder
+        # Read the indexes from the month's temp folder
         indexes = []
         start, end = float('inf'), float('-inf')
         for i in range(self.num_buffer_folders + 1):
@@ -177,7 +181,9 @@ class QueryProcessor:
                             for line in month_temp_file]
                 start = min(start, indexes[0])
                 end = max(end, indexes[-1])
-        print(start, end)
+
+        # Reset the buffer folder count
+        self.num_buffer_folders = 0
 
         # Find the zone containing the indexes
         for zone_map in self.column_store.get_zone_maps()[column_name]:
@@ -191,7 +197,56 @@ class QueryProcessor:
                 self.process_split_files(column_name, zone_map.get_zone_count(), str(
                     self.town), str(self.town), indexes)
 
-    def process_split_files(self, column_name: str, zone_count: int, start, end, indexes: list = []):
+    def process_query(self, column_name: ColumnsOfInterest):
+        print("=" * 60)
+        print(f"Processing {column_name}...")
+
+        # Read the indexes from the town's temp folder
+        indexes = []
+        start, end = float('inf'), float('-inf')
+        for i in range(self.num_buffer_folders + 1):
+            town_temp_file_path = os.path.join(
+                self.buffer_folder, f"town_chunk_{i}.txt")
+
+            if not os.path.exists(town_temp_file_path):
+                print(f"Error: {town_temp_file_path} not found.")
+                continue
+
+            with open(town_temp_file_path, 'r', encoding='utf-8') as month_temp_file:
+                indexes += [int(line.split(" ")[1])
+                            for line in month_temp_file]
+                start = min(start, indexes[0])
+                end = max(end, indexes[-1])
+
+        # Reset the buffer folder count
+        self.num_buffer_folders = 0
+
+        # Find the zone containing the indexes
+        for zone_map in self.column_store.get_zone_maps()[column_name]:
+            min_idx, max_idx = \
+                zone_map.get_zone_map()['min_idx'], zone_map.get_zone_map()[
+                    'max_idx']
+            if min_idx <= start <= max_idx or min_idx <= end <= max_idx:
+                print(
+                    f"Found the zone containing the indexes: {zone_map.get_zone_count()}")
+                # Process the split files within the target zone
+                self.process_split_files(
+                    column_name, zone_map.get_zone_count(), None, None, indexes, True)
+
+        print('\n' + '~' * 25 + "Statistics" + '~' * 25)
+        min_value = min(self.data)
+        print(f"{column_name} min: {min_value}")
+
+        mean_value = statistics.mean(self.data)
+        print(f"{column_name} mean: {mean_value}")
+
+        std_deviation = statistics.stdev(self.data)
+        print(f"{column_name} standard deviation: {std_deviation}")
+
+        median_value = statistics.median(self.data)
+        print(f"{column_name} median: {median_value}")
+
+    def process_split_files(self, column_name: str, zone_count: int, start: str, end: str, indexes: list = [], final: bool = False):
         directory = self.column_store.disk_folder
         file_path = os.path.join(
             directory, f"{column_name}_chunk_{zone_count}.txt")
@@ -214,6 +269,10 @@ class QueryProcessor:
                     line = content[offset - 1]
                     value = line.rstrip()
 
+                    if final:
+                        self.data.append(int(value))
+                        continue
+
                     if start <= value <= end:
                         # If lines_processed reaches MAX_FILE_LINES, close the current temporary file
                         if lines_processed % MAX_FILE_LINES == 0:
@@ -227,7 +286,8 @@ class QueryProcessor:
                                 temp_output_file_path, 'w', encoding='utf-8')
 
                         # Write the line to the current temporary file
-                        temp_output_file.write(f"{value} {index}\n")
+                        temp_output_file.write(
+                            f"{value} {index}\n")
                         lines_processed += 1
             else:
                 # Process the lines sequentially
@@ -259,17 +319,69 @@ class QueryProcessor:
             self.num_buffer_folders, lines_processed // MAX_FILE_LINES)
 
 
-columns_of_interest = [ColumnsOfInterest.TOWN, ColumnsOfInterest.MONTH,
-                       ColumnsOfInterest.FLOOR_AREA_SQM, ColumnsOfInterest.RESALE_PRICE]
+def main():
+    columns_of_interest = [ColumnsOfInterest.TOWN.value, ColumnsOfInterest.MONTH.value,
+                           ColumnsOfInterest.FLOOR_AREA_SQM.value, ColumnsOfInterest.RESALE_PRICE.value]
 
-column_store = ColumnStore(INPUT_PATH, DISK_FOLDER, columns_of_interest)
-column_store.process_csv()
-zone_maps = column_store.get_zone_maps()
+    column_store = ColumnStore(
+        INPUT_PATH, DISK_FOLDER, columns_of_interest)
+    column_store.process_csv()
 
-for column_name, zone_map_arr in zone_maps.items():
-    for zone_map in zone_map_arr:
-        print(f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
+    # zone_maps = column_store.get_zone_maps()
+    # for column_name, zone_map_arr in zone_maps.items():
+    #     for zone_map in zone_map_arr:
+    #         print(
+    #             f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
 
-processor = QueryProcessor(2021, 11, 0, column_store)
-processor.process_year_and_month()
-processor.process_towns()
+    while True:
+        print()
+        text = 'Enter your matriculation number for processing [q to quit]: '
+        matric_num = input(text).strip()
+
+        if matric_num == 'q':
+            print('System quitting...')
+            break
+
+        """ 
+        467B 
+        -> 1st digit: town
+        -> 2nd digit: starting month
+        -> 3rd digit: year
+        """
+        try:
+            if len(matric_num) != 9:
+                print('Invalid input - matriculation number is of length 9')
+                continue
+            town, month, year = int(
+                matric_num[-4]), int(matric_num[-3]), int(matric_num[-2])
+            year += 2010 if year > 3 else 2020
+        except ValueError:
+            print('Invalid input! Please try again...')
+            continue
+
+        print("Available statistics:")
+        for key, value in STATISTIC_TYPE.items():
+            print(f"\t{key} - {value}")
+        text = 'Pick your statistic of interest: '
+        interested_stat = input(text).strip()
+
+        try:
+            interested_stat = int(interested_stat)
+            if interested_stat > 6:
+                print('Invalid input! Please select only from the available choices...')
+                continue
+            interested_column = ColumnsOfInterest.FLOOR_AREA_SQM.value if interested_stat < 3 else ColumnsOfInterest.RESALE_PRICE.value
+        except ValueError:
+            print('Invalid input! Please try again...')
+            continue
+
+        processor = QueryProcessor(year, month, town, column_store)
+        processor.process_year_and_month()
+        processor.process_towns()
+        processor.process_query(interested_column)
+
+
+if __name__ == "__main__":
+    start = time.time()
+    main()
+    print(f"Time took: {time.time() - start} seconds")
