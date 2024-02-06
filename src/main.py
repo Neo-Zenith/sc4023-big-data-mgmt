@@ -2,7 +2,7 @@ import os
 import csv
 import statistics
 import time
-from constants import DISK_FOLDER, INPUT_PATH, STATISTIC_TYPE, TOWN_MAPPING, MAX_FILE_LINES
+from constants import *
 from typing import Dict, List
 from datetime import datetime, timedelta
 from enum import Enum
@@ -15,20 +15,113 @@ class ColumnsOfInterest(Enum):
     RESALE_PRICE = 'resale_price'
 
 
+class ZoneMap:
+    def __init__(self, column_name, zone_count):
+        """
+        Initializes a ZoneMap object.
+
+        Args:
+            column_name (str): The name of the column.
+            zone_count (int): The number of zones.
+        """
+        self.column_name = column_name
+        self.zone_count = zone_count
+        self.data = {
+            'min_idx': float('inf'),
+            'max_idx': float('-inf'),
+        }
+
+        if column_name == 'month':
+            self.data['min_month'] = '9999-01'
+            self.data['max_month'] = '0001-01'
+        elif column_name == 'town':
+            self.data['min_town'] = float("inf")
+            self.data['max_town'] = -1
+
+    def set_min_idx(self, min_idx):
+        """
+        Sets the minimum index.
+
+        Args:
+            min_idx (float): The minimum index value.
+        """
+        self.data['min_idx'] = min_idx
+
+    def set_max_idx(self, max_idx):
+        """
+        Sets the maximum index.
+
+        Args:
+            max_idx (float): The maximum index value.
+        """
+        self.data['max_idx'] = max_idx
+
+    def update_zone_map(self, value):
+        """
+        Updates the zone map data based on the given value.
+
+        Args:
+            value: The value to update the zone map data with.
+        """
+        if self.column_name == 'month':
+            min_month = self.data['min_month']
+            max_month = self.data['max_month']
+
+            self.data['min_month'] = min(min_month, value)
+            self.data['max_month'] = max(max_month, value)
+        elif self.column_name == 'town':
+            min_town = self.data['min_town']
+            max_town = self.data['max_town']
+
+            self.data['min_town'] = min(min_town, value)
+            self.data['max_town'] = max(max_town, value)
+
+    def get_zone_map(self):
+        """
+        Returns the zone map data.
+
+        Returns:
+            dict: The zone map data.
+        """
+        return self.data
+
+    def get_zone_count(self):
+        """
+        Returns the number of zones.
+
+        Returns:
+            int: The number of zones.
+        """
+        return self.zone_count
+
+
 class ColumnStore:
     def __init__(self, csv_file_path: str, disk_folder: str, columns_of_interest: List[ColumnsOfInterest], max_file_lines=MAX_FILE_LINES):
+        """
+        Initializes a ColumnStore object.
+
+        Args:
+            csv_file_path (str): The path to the CSV file.
+            disk_folder (str): The path to the folder where the chunk files will be stored.
+            columns_of_interest (List[ColumnsOfInterest]): A list of columns of interest.
+            max_file_lines (int, optional): The maximum number of lines per chunk file. Defaults to MAX_FILE_LINES.
+        """
         self.csv_file_path = csv_file_path
         self.disk_folder = disk_folder
-        # this ordering is important -> it dictates which column will be processed first when building zone maps
         self.columns_of_interest = columns_of_interest
         self.max_file_lines = max_file_lines
         self.zone_maps: Dict[str, List[ZoneMap]] = {}
+
+        create_directory_if_not_exists(self.disk_folder)
 
         # initialize ZoneMap for interested columns
         for column_name in columns_of_interest:
             self.zone_maps[column_name] = []
 
     def process_csv(self):
+        """
+        Processes the CSV file and creates chunk files and zone maps.
+        """
         idx = 0  # line index
         zone_count = 0
         opened_files = {}
@@ -82,64 +175,43 @@ class ColumnStore:
             opened_files[col_name].close()
             self.zone_maps[col_name][-1].set_max_idx(idx)
 
-    def get_zone_maps(self):
+    def get_zone_maps(self) -> Dict[str, List[ZoneMap]]:
+        """
+        Returns the zone maps.
+
+        Returns:
+            Dict[str, List[ZoneMap]]: A dictionary containing the zone maps for each column of interest.
+        """
         return self.zone_maps
 
 
-class ZoneMap:
-    def __init__(self, column_name, zone_count):
-        self.column_name = column_name
-        self.zone_count = zone_count
-        self.data = {
-            'min_idx': float('inf'),
-            'max_idx': float('-inf'),
-        }
-
-        if column_name == 'month':
-            self.data['min_month'] = '9999-01'
-            self.data['max_month'] = '0001-01'
-        elif column_name == 'town':
-            self.data['min_town'] = float("inf")
-            self.data['max_town'] = -1
-
-    def set_min_idx(self, min_idx):
-        self.data['min_idx'] = min_idx
-
-    def set_max_idx(self, max_idx):
-        self.data['max_idx'] = max_idx
-
-    def update_zone_map(self, value):
-        if self.column_name == 'month':
-            min_month = self.data['min_month']
-            max_month = self.data['max_month']
-
-            self.data['min_month'] = min(min_month, value)
-            self.data['max_month'] = max(max_month, value)
-        elif self.column_name == 'town':
-            min_town = self.data['min_town']
-            max_town = self.data['max_town']
-
-            self.data['min_town'] = min(min_town, value)
-            self.data['max_town'] = max(max_town, value)
-
-    def get_zone_map(self):
-        return self.data
-
-    def get_zone_count(self):
-        return self.zone_count
-
-
 class QueryProcessor:
-    def __init__(self, year: int, month: int, town: int, column_store: ColumnStore):
+    def __init__(self, year: int, month: int, town: int, column_store: ColumnStore, buffer_folder=BUFFER_FOLDER):
+        """
+        Initializes a QueryProcessor object.
+
+        Args:
+            year (int): The year value.
+            month (int): The month value.
+            town (int): The town value.
+            column_store (ColumnStore): The column store object.
+        """
         self.year = year
         self.month = month
         self.town = town
         self.column_store = column_store
-        self.buffer_folder = 'temp'
+        self.buffer_folder = buffer_folder
         self.num_buffer_folders = 0
         self.data = []
+        create_directory_if_not_exists(self.buffer_folder)
 
     def process_year_and_month(self, column_name: ColumnsOfInterest = 'month'):
+        """
+        Processes the year and month data.
+
+        Args:
+            column_name (ColumnsOfInterest, optional): The column name of interest. Defaults to 'month'.
+        """
         print("\n" + "=" * 60)
         print("Processing year and month...")
         zone_maps = self.column_store.get_zone_maps()
@@ -162,6 +234,12 @@ class QueryProcessor:
                     column_name, zone_count, start_value, end_value)
 
     def process_towns(self, column_name: ColumnsOfInterest = 'town'):
+        """
+        Processes the towns data.
+
+        Args:
+            column_name (ColumnsOfInterest, optional): The column name of interest. Defaults to 'town'.
+        """
         print("\n" + "=" * 60)
         print("Processing towns...")
 
@@ -197,8 +275,14 @@ class QueryProcessor:
                 self.process_split_files(column_name, zone_map.get_zone_count(), str(
                     self.town), str(self.town), indexes)
 
-    def process_query(self, column_name: ColumnsOfInterest):
-        print("=" * 60)
+    def process_query(self, column_name: ColumnsOfInterest, interested_stat: int):
+        """
+        Processes the query.
+
+        Args:
+            column_name (ColumnsOfInterest): The column name of interest.
+        """
+        print("\n" + "=" * 60)
         print(f"Processing {column_name}...")
 
         # Read the indexes from the town's temp folder
@@ -233,20 +317,37 @@ class QueryProcessor:
                 self.process_split_files(
                     column_name, zone_map.get_zone_count(), None, None, indexes, True)
 
-        print('\n' + '~' * 25 + "Statistics" + '~' * 25)
-        min_value = min(self.data)
-        print(f"{column_name} min: {min_value}")
+        output = self.calc_stat(interested_stat)
 
-        mean_value = statistics.mean(self.data)
-        print(f"{column_name} mean: {mean_value}")
+        # reset data buffer
+        self.data = []
+        return output
 
-        std_deviation = statistics.stdev(self.data)
-        print(f"{column_name} standard deviation: {std_deviation}")
+    def calc_stat(self, interested_stat) -> list:
+        stat = None
+        if interested_stat % 3 == 1:
+            stat = min(self.data)
+        elif interested_stat % 3 == 2:
+            stat = round(statistics.mean(self.data), 2)
+        elif interested_stat % 3 == 0:
+            stat = round(statistics.stdev(self.data), 2)
 
-        median_value = statistics.median(self.data)
-        print(f"{column_name} median: {median_value}")
+        data = [self.year, f"{self.month:02}", REVERSE_TOWN_MAPPING[self.town],
+                STATISTIC_TYPE[interested_stat], stat]
+        return data
 
     def process_split_files(self, column_name: str, zone_count: int, start: str, end: str, indexes: list = [], final: bool = False):
+        """
+        Processes the split files.
+
+        Args:
+            column_name (str): The column name.
+            zone_count (int): The zone count.
+            start (str): The start value.
+            end (str): The end value.
+            indexes (list, optional): The list of indexes. Defaults to [].
+            final (bool, optional): Indicates if it's the final processing. Defaults to False.
+        """
         directory = self.column_store.disk_folder
         file_path = os.path.join(
             directory, f"{column_name}_chunk_{zone_count}.txt")
@@ -319,20 +420,21 @@ class QueryProcessor:
             self.num_buffer_folders, lines_processed // MAX_FILE_LINES)
 
 
-def main():
-    columns_of_interest = [ColumnsOfInterest.TOWN.value, ColumnsOfInterest.MONTH.value,
-                           ColumnsOfInterest.FLOOR_AREA_SQM.value, ColumnsOfInterest.RESALE_PRICE.value]
+def create_directory_if_not_exists(directory):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
-    column_store = ColumnStore(
-        INPUT_PATH, DISK_FOLDER, columns_of_interest)
-    column_store.process_csv()
 
-    # zone_maps = column_store.get_zone_maps()
-    # for column_name, zone_map_arr in zone_maps.items():
-    #     for zone_map in zone_map_arr:
-    #         print(
-    #             f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
+def output_to_csv(file_path, data):
+    mode = 'a' if os.path.exists(file_path) else 'w'
+    with open(file_path, mode, newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        if mode == 'w':
+            writer.writerow(OUTPUT_HEADERS)
+        writer.writerow(data)
 
+
+def run(column_store):
     while True:
         print()
         text = 'Enter your matriculation number for processing [q to quit]: '
@@ -370,18 +472,40 @@ def main():
             if interested_stat > 6:
                 print('Invalid input! Please select only from the available choices...')
                 continue
-            interested_column = ColumnsOfInterest.FLOOR_AREA_SQM.value if interested_stat < 3 else ColumnsOfInterest.RESALE_PRICE.value
+            interested_column = ColumnsOfInterest.FLOOR_AREA_SQM.value if interested_stat < 4 else ColumnsOfInterest.RESALE_PRICE.value
         except ValueError:
             print('Invalid input! Please try again...')
             continue
 
+        start = time.time()
         processor = QueryProcessor(year, month, town, column_store)
         processor.process_year_and_month()
         processor.process_towns()
-        processor.process_query(interested_column)
+        data = processor.process_query(interested_column, interested_stat)
+        print(f"\nQuery time: {time.time() - start}s")
+        create_directory_if_not_exists(OUTPUT_FOLDER)
+        output_file_path = os.path.join(
+            OUTPUT_FOLDER, f"ScanResult_{matric_num}.csv")
+        output_to_csv(output_file_path, data)
+        print("Output written to", output_file_path)
+
+
+def main():
+    columns_of_interest = [ColumnsOfInterest.TOWN.value, ColumnsOfInterest.MONTH.value,
+                           ColumnsOfInterest.FLOOR_AREA_SQM.value, ColumnsOfInterest.RESALE_PRICE.value]
+
+    column_store = ColumnStore(
+        INPUT_PATH, DISK_FOLDER, columns_of_interest)
+    column_store.process_csv()
+
+    # zone_maps = column_store.get_zone_maps()
+    # for column_name, zone_map_arr in zone_maps.items():
+    #     for zone_map in zone_map_arr:
+    #         print(
+    #             f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
+
+    run(column_store)
 
 
 if __name__ == "__main__":
-    start = time.time()
     main()
-    print(f"Time took: {time.time() - start} seconds")

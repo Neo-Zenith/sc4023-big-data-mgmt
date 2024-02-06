@@ -1,11 +1,13 @@
 MAX_FILE_LINES = 40000
 INPUT_PATH = 'data/ResalePricesSingapore.csv'
 DISK_FOLDER = 'processed'
+BUFFER_FOLDER = 'temp'
 OUTPUT_FOLDER = 'output'
+OUTPUT_HEADERS = ['Year', 'Month', 'Town', 'Category', 'Value']
 
 
 STATISTIC_TYPE = {
-    1: 'MIN_AREA', 2: 'AVG_AREA', 3: 'STD_AREA', 4: 'MIN_PRICE', 5: 'AVG_PRICE', 6: 'STD_PRICE'
+    1: 'Minimum Area', 2: 'Average Area', 3: 'Standard Deviation of Area', 4: 'Minimum Price', 5: 'Average Price', 6: 'Standard Deviation of Price'
 }
 
 TOWN_MAPPING = {
@@ -20,6 +22,7 @@ TOWN_MAPPING = {
     'WOODLANDS': 8,
     'YISHUN': 9
 }
+REVERSE_TOWN_MAPPING = {v: k for k, v in TOWN_MAPPING.items()}
 
 # TOWNS = ['ANG MO KIO', 'BEDOK', 'BISHAN', 'BUKIT BATOK', 'BUKIT MERAH',
 #          'BUKIT PANJANG', 'BUKIT TIMAH', 'CENTRAL AREA', 'CHOA CHU KANG',
