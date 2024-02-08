@@ -143,7 +143,7 @@ class ColumnStore:
                 for column_name in self.columns_of_interest:
                     value = row[column_name]
                     if column_name == 'town':
-                        value = TOWN_MAPPING[value] if value in TOWN_MAPPING else -1
+                        value = ALL_TOWNS_MAPPING[value] if value in ALL_TOWNS_MAPPING else -1
                         if value == -1:
                             # flag to skip the rest of the columns
                             mapped_value = -1
