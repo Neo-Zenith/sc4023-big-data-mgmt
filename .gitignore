@@ -1,5 +1,5 @@
 venv/
 processed/
 temp/
-reference/
 __pycache__/
+output/

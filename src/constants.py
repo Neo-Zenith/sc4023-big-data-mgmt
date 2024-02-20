@@ -5,7 +5,6 @@ BUFFER_FOLDER = 'temp'
 OUTPUT_FOLDER = 'output'
 OUTPUT_HEADERS = ['Year', 'Month', 'Town', 'Category', 'Value']
 
-
 STATISTIC_TYPE = {
     1: 'Minimum Area', 2: 'Average Area', 3: 'Standard Deviation of Area', 4: 'Minimum Price', 5: 'Average Price', 6: 'Standard Deviation of Price'
 }
@@ -27,12 +26,3 @@ OTHER_TOWNS = {'SERANGOON', 'PASIR RIS', 'KALLANG/WHAMPOA', 'SEMBAWANG', 'SENGKA
 OTHER_TOWNS_MAPPING = {town: 10 + i for i, town in enumerate(OTHER_TOWNS)}
 ALL_TOWNS_MAPPING = {**TOWN_MAPPING, **OTHER_TOWNS_MAPPING}
 REVERSE_TOWN_MAPPING = {v: k for k, v in ALL_TOWNS_MAPPING.items()}
-
-# TOWNS = ['ANG MO KIO', 'BEDOK', 'BISHAN', 'BUKIT BATOK', 'BUKIT MERAH',
-#          'BUKIT PANJANG', 'BUKIT TIMAH', 'CENTRAL AREA', 'CHOA CHU KANG',
-#          'CLEMENTI', 'GEYLANG', 'HOUGANG', 'JURONG EAST', 'JURONG WEST',
-#          'KALLANG/WHAMPOA', 'MARINE PARADE', 'PASIR RIS', 'PUNGGOL',
-#          'QUEENSTOWN', 'SEMBAWANG', 'SENGKANG', 'SERANGOON', 'TAMPINES',
-#          'TOA PAYOH', 'WOODLANDS', 'YISHUN']
-
-# TOWN_MAPPING = {town: i for i, town in enumerate(TOWNS)}

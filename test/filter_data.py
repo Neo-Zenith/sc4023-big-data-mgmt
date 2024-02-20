@@ -1,4 +1,5 @@
 import pandas as pd
+import argparse
 
 
 def get_year(matriculation_number):
@@ -32,16 +33,19 @@ def filter_data(rawfile, town, start_month, end_month):
 
 
 def calculate_statistics(filtered):
+    sum_area = filtered['floor_area_sqm'].sum()
     min_area = filtered['floor_area_sqm'].min()
     avg_area = filtered['floor_area_sqm'].mean()
     std_dev_area = filtered['floor_area_sqm'].std()
 
+    sum_price = filtered['resale_price'].sum()
     min_price = filtered['resale_price'].min()
     avg_price = filtered['resale_price'].mean()
     std_dev_price = filtered['resale_price'].std()
 
-    summary = pd.DataFrame({'Statistic': ['Minimum Area', 'Average Area', 'Standard Deviation of Area', 'Minimum Price', 'Average Price',
-                                          'Standard Deviation of Price'], 'Value': [min_area, avg_area, std_dev_area, min_price, avg_price, std_dev_price]})
+    summary = pd.DataFrame({'Statistic': ['Sum Area', 'Minimum Area', 'Average Area', 'Standard Deviation of Area', 'Sum Price', 'Minimum Price', 'Average Price',
+                                          'Standard Deviation of Price'],
+                            'Value': [sum_area, min_area, avg_area, std_dev_area, sum_price, min_price, avg_price, std_dev_price]})
     return summary
 
 
@@ -51,15 +55,28 @@ def save_to_excel(filtered, summary, excel_file_path):
         summary.to_excel(writer, sheet_name='Summary', index=False)
 
 
-rawfile = pd.read_csv("data\ResalePricesSingapore.csv")
-matriculation_number = 'U2123463A'
+def main(matriculation_number):
+    rawfile = pd.read_csv("data\ResalePricesSingapore.csv")
 
-year = get_year(matriculation_number)
-start_month, end_month = get_month(year, matriculation_number)
-town = get_town(matriculation_number)
+    year = get_year(matriculation_number)
+    start_month, end_month = get_month(year, matriculation_number)
+    town = get_town(matriculation_number)
 
-filtered = filter_data(rawfile, town, start_month, end_month)
-summary = calculate_statistics(filtered)
+    filtered = filter_data(rawfile, town, start_month, end_month)
+    summary = calculate_statistics(filtered)
 
-excel_file_path = "data\summary_data.xlsx"
-save_to_excel(filtered, summary, excel_file_path)
+    excel_file_path = f"output\\test_output_{matriculation_number}.xlsx"
+    save_to_excel(filtered, summary, excel_file_path)
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description='Generate test output based on matriculation number')
+    parser.add_argument('--matric_num', '-m', type=str,
+                        help='Matriculation number of length 9')
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    main(args.matric_num)
