@@ -4,7 +4,6 @@ import statistics
 import time
 from constants import *
 from typing import Dict, List
-from datetime import datetime, timedelta
 from enum import Enum
 import shutil
 
@@ -334,8 +333,11 @@ class QueryProcessor:
                 print(
                     f"Found the zone containing the indexes: {zone_map.get_zone_count()}")
                 # Process the split files within the target zone
+                zone_indexes = self.get_zone_indexes(indexes, min_idx, max_idx)
+                print("Range of indexes:", min(
+                    zone_indexes), max(zone_indexes))
                 self.process_split_files(
-                    column_name, zone_map.get_zone_count(), None, None, indexes, True)
+                    column_name, zone_map.get_zone_count(), None, None, zone_indexes, True)
 
         # self.debug_output_data()
 
@@ -487,10 +489,6 @@ class QueryProcessor:
         self.num_buffer_folders = max(
             self.num_buffer_folders, self.lines_processed // MAX_FILE_LINES)
 
-    def __del__(self):
-        print("Cleaning up...")
-        delete_all_files_in_directory(self.buffer_folder)
-
 
 def create_directory_if_not_exists(directory):
     if not os.path.exists(directory):
@@ -503,7 +501,6 @@ def delete_all_files_in_directory(directory):
             file_path = os.path.join(dirpath, file_name)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-    shutil.rmtree(directory)
 
 
 def output_to_csv(file_path: str, data: list):
@@ -523,6 +520,7 @@ def run(column_store: ColumnStore):
 
         if matric_num == 'q':
             print('System quitting...')
+            shutil.rmtree(BUFFER_FOLDER)
             break
 
         """ 
@@ -569,6 +567,7 @@ def run(column_store: ColumnStore):
             OUTPUT_FOLDER, f"ScanResult_{matric_num}.csv")
         output_to_csv(output_file_path, data)
         print("Output written to", output_file_path)
+        delete_all_files_in_directory(BUFFER_FOLDER)
 
 
 def main():
