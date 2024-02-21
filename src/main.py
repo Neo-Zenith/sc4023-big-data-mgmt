@@ -512,62 +512,73 @@ def output_to_csv(file_path: str, data: list):
         writer.writerow(data)
 
 
-def run(column_store: ColumnStore):
+def run(column_store: ColumnStore, matric_num):
     while True:
-        print()
-        text = 'Enter your matriculation number for processing [q to quit]: '
-        matric_num = input(text).strip()
+        if(matric_num == ""):
+            print()
+            text = 'Enter your matriculation number for processing [q to quit]: '
+            matric_num = input(text).strip()
 
-        if matric_num == 'q':
-            print('System quitting...')
-            shutil.rmtree(BUFFER_FOLDER)
-            break
+            if matric_num == 'q':
+                print('System quitting...')
+                shutil.rmtree(BUFFER_FOLDER)
+                break
 
-        """ 
-        467B 
-        -> 1st digit: town
-        -> 2nd digit: starting month
-        -> 3rd digit: year
-        """
-        try:
-            if len(matric_num) != 9:
-                print('Invalid input - matriculation number is of length 9')
+            """ 
+            467B 
+            -> 1st digit: town
+            -> 2nd digit: starting month
+            -> 3rd digit: year
+            """
+            try:
+                if len(matric_num) != 9:
+                    print('Invalid input - matriculation number is of length 9')
+                    matric_num = ""
+                    continue
+                town, month, year = int(
+                    matric_num[-4]), int(matric_num[-3]), int(matric_num[-2])
+                year += 2010 if year > 3 else 2020
+            except ValueError:
+                print('Invalid input! Please try again...')
                 continue
-            town, month, year = int(
-                matric_num[-4]), int(matric_num[-3]), int(matric_num[-2])
-            year += 2010 if year > 3 else 2020
-        except ValueError:
-            print('Invalid input! Please try again...')
-            continue
+        else:
+            print("\n" + "=" * 60)
+            print(f"[{matric_num}] Available statistics:")
+            for key, value in STATISTIC_TYPE.items():
+                print(f"\t{key} - {value}")
+            text = 'Pick your statistic of interest: '
+            interested_stat = input(text).strip()
 
-        print("Available statistics:")
-        for key, value in STATISTIC_TYPE.items():
-            print(f"\t{key} - {value}")
-        text = 'Pick your statistic of interest: '
-        interested_stat = input(text).strip()
-
-        try:
-            interested_stat = int(interested_stat)
-            if interested_stat > 6:
-                print('Invalid input! Please select only from the available choices...')
+            try:
+                interested_stat = int(interested_stat)
+                if interested_stat > 8:
+                    print('Invalid input! Please select only from the available choices...')
+                    continue
+                elif(interested_stat == 7):
+                    matric_num = ""
+                    continue
+                elif(interested_stat == 0):
+                    print('System quitting...')
+                    shutil.rmtree(BUFFER_FOLDER)
+                    break
+                else:
+                    interested_column = ColumnsOfInterest.FLOOR_AREA_SQM.value if interested_stat < 4 else ColumnsOfInterest.RESALE_PRICE.value
+            except ValueError:
+                print('Invalid input! Please try again...')
                 continue
-            interested_column = ColumnsOfInterest.FLOOR_AREA_SQM.value if interested_stat < 4 else ColumnsOfInterest.RESALE_PRICE.value
-        except ValueError:
-            print('Invalid input! Please try again...')
-            continue
 
-        start = time.time()
-        processor = QueryProcessor(year, month, town, column_store)
-        processor.process_year_and_month()
-        processor.process_towns()
-        data = processor.process_query(interested_column, interested_stat)
-        print(f"\nQuery time: {time.time() - start}s")
-        create_directory_if_not_exists(OUTPUT_FOLDER)
-        output_file_path = os.path.join(
-            OUTPUT_FOLDER, f"ScanResult_{matric_num}.csv")
-        output_to_csv(output_file_path, data)
-        print("Output written to", output_file_path)
-        delete_all_files_in_directory(BUFFER_FOLDER)
+            start = time.time()
+            processor = QueryProcessor(year, month, town, column_store)
+            processor.process_year_and_month()
+            processor.process_towns()
+            data = processor.process_query(interested_column, interested_stat)
+            print(f"\nQuery time: {time.time() - start}s")
+            create_directory_if_not_exists(OUTPUT_FOLDER)
+            output_file_path = os.path.join(
+                OUTPUT_FOLDER, f"ScanResult_{matric_num}.csv")
+            output_to_csv(output_file_path, data)
+            print("Output written to", output_file_path)
+            delete_all_files_in_directory(BUFFER_FOLDER)
 
 
 def main():
@@ -583,8 +594,8 @@ def main():
         for zone_map in zone_map_arr:
             print(
                 f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
-
-    run(column_store)
+    
+    run(column_store, "")
 
 
 if __name__ == "__main__":
