@@ -1,0 +1,7 @@
+1. Read CSV line by line, store separate columns in a TXT file (could try binary also but I had trouble seeking to the correct index reading from it after)
+2. Split every MAX_FILE_LINES rows and update the appropriate zone_map for that column
+3. When querying, use zone map to find the appropriate zone starting from the column "month" -> store the indexes in MM (can output to disk if exceed certain size)
+4. Use the previously obtained indexes and go to corresponding zone for column "town" -> filter and store the remaining index in MM
+5. Finally, use index and go to either column "floor_area_sqm"/"resale_price" depending on user input, grab the data and compute the statistic before outputting it
+
+1. reduce zone map size
