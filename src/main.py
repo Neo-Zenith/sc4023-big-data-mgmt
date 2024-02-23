@@ -277,7 +277,7 @@ class QueryProcessor:
             min_idx, max_idx = \
                 zone_map.get_zone_map()['min_idx'], zone_map.get_zone_map()[
                     'max_idx']
-            if min_idx <= start <= max_idx or min_idx <= end <= max_idx:
+            if min_idx <= end and start <= max_idx:
                 print(
                     f"Found the zone containing the indexes: {zone_map.get_zone_count()}")
                 # Process the split files within the target zone
@@ -434,6 +434,7 @@ class QueryProcessor:
 
         # Sequential scan
         with open(file_path, 'r', encoding='utf-8') as file:
+            print("[TEST]: ", file_path)
             if indexes:
                 content = file.readlines()
                 for index in indexes:
