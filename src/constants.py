@@ -1,4 +1,4 @@
-MAX_FILE_LINES = 40000
+MAX_FILE_LINES = 2000
 INPUT_PATH = 'data/ResalePricesSingapore.csv'
 DISK_FOLDER = 'processed'
 BUFFER_FOLDER = 'temp'
