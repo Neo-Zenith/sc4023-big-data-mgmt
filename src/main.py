@@ -519,9 +519,12 @@ def run(column_store: ColumnStore):
         text = 'Enter your matriculation number for processing [q to quit]: '
         matric_num = input(text).strip()
 
-        if matric_num == 'q':
+        if matric_num.lower() == 'q':
             print('System quitting...')
-            shutil.rmtree(BUFFER_FOLDER)
+            try:
+                shutil.rmtree(BUFFER_FOLDER)
+            except:
+                pass
             break
 
         """ 
