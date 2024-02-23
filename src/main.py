@@ -96,7 +96,7 @@ class ZoneMap:
 
 
 class ColumnStore:
-    def __init__(self, csv_file_path: str, disk_folder: str, columns_of_interest: List[ColumnsOfInterest],max_file_lines=MAX_FILE_LINES):
+    def __init__(self, csv_file_path: str, disk_folder: str, columns_of_interest: List[ColumnsOfInterest], max_file_lines=MAX_FILE_LINES):
         """
         Initializes a ColumnStore object.
 
@@ -229,8 +229,7 @@ class QueryProcessor:
             zone_count = zone_map.get_zone_count()
 
             # Check if the specified year and month fall within the range
-            if zone_data['min_month'] <= start_value <= zone_data['max_month'] \
-                    or zone_data['min_month'] <= end_value <= zone_data['max_month']:
+            if zone_data['min_month'] <= end_value and start_value <= zone_data['max_month']:
                 print(
                     f"Found the zone containing the year and month: {zone_count}")
                 # Process the split files within the zone
@@ -282,13 +281,13 @@ class QueryProcessor:
                 print(
                     f"Found the zone containing the indexes: {zone_map.get_zone_count()}")
                 # Process the split files within the target zone
-                # TODO: fix issue of indexes out of bound passed to wrong zones
                 zone_indexes = self.get_zone_indexes(indexes, min_idx, max_idx)
                 # This zone has no indexes matched
                 if len(zone_indexes) == 0:
                     continue
                 print("Range of indexes:", min(
                     zone_indexes), max(zone_indexes))
+
                 self.process_split_files(column_name, zone_map.get_zone_count(), str(
                     self.town), str(self.town), zone_indexes)
 
@@ -342,6 +341,7 @@ class QueryProcessor:
                     continue
                 print("Range of indexes:", min(
                     zone_indexes), max(zone_indexes))
+
                 self.process_split_files(
                     column_name, zone_map.get_zone_count(), None, None, zone_indexes, True)
 
@@ -566,19 +566,22 @@ def run(column_store: ColumnStore, max_file_lines=MAX_FILE_LINES):
             continue
 
         start = time.time()
-        processor = QueryProcessor(year, month, town, column_store, max_file_lines=max_file_lines)
+        processor = QueryProcessor(
+            year, month, town, column_store, max_file_lines=max_file_lines)
         processor.process_year_and_month()
         processor.process_towns()
         data = processor.process_query(interested_column, interested_stat)
         end = time.time()
         time_taken = end - start
         print(f"\nQuery time: {time_taken}s")
+
         create_directory_if_not_exists(OUTPUT_FOLDER)
         output_file_path = os.path.join(
             OUTPUT_FOLDER, f"ScanResult_{matric_num}.csv")
         output_to_csv(output_file_path, data)
         print("Output written to", output_file_path)
         delete_all_files_in_directory(BUFFER_FOLDER)
+
 
 def main(max_file_lines=MAX_FILE_LINES):
     columns_of_interest = [ColumnsOfInterest.TOWN.value, ColumnsOfInterest.MONTH.value,
@@ -588,11 +591,11 @@ def main(max_file_lines=MAX_FILE_LINES):
         INPUT_PATH, DISK_FOLDER, columns_of_interest, max_file_lines)
     column_store.process_csv()
 
-    zone_maps = column_store.get_zone_maps()
-    for column_name, zone_map_arr in zone_maps.items():
-        for zone_map in zone_map_arr:
-            print(
-                f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
+    # zone_maps = column_store.get_zone_maps()
+    # for column_name, zone_map_arr in zone_maps.items():
+    #     for zone_map in zone_map_arr:
+    #         print(
+    #             f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
 
     run(column_store, max_file_lines)
 

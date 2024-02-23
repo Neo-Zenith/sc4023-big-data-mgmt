@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 chunk_size = []
 query_time = []
 for i in range(1000, 100000, 1000):
-    process = subprocess.Popen(['python', 'src/performance_test.py', f'--chunk_size={i}'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    process = subprocess.Popen(['python', 'src/performance_test.py',
+                               f'--chunk_size={i}'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
     # Define the input values and their order
     input_values = ['U2120349E', '2', 'q']
@@ -18,7 +19,10 @@ for i in range(1000, 100000, 1000):
     # Wait for the process to finish and get the output
     output, error = process.communicate()
 
-    print(output.split('\n')[-4])
+    print(output)
+    print()
+
+    # print(output.split('\n')[-4])
 
     # Save the output to a list
     query_time.append(float(output.split('\n')[-5][12:-2]))
