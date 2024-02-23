@@ -186,7 +186,7 @@ class ColumnStore:
 
 
 class QueryProcessor:
-    def __init__(self, year: int, month: int, town: int, column_store: ColumnStore, buffer_folder=BUFFER_FOLDER):
+    def __init__(self, year: int, month: int, town: int, column_store: ColumnStore, buffer_folder=BUFFER_FOLDER, max_file_lines=MAX_FILE_LINES):
         """
         Initializes a QueryProcessor object.
 
@@ -205,6 +205,7 @@ class QueryProcessor:
         self.temp_output_file = None
         self.lines_processed = 0
         self.data = []
+        self.max_file_lines = max_file_lines
         create_directory_if_not_exists(self.buffer_folder)
 
     def process_year_and_month(self, column_name: ColumnsOfInterest = 'month'):
@@ -228,8 +229,7 @@ class QueryProcessor:
             zone_count = zone_map.get_zone_count()
 
             # Check if the specified year and month fall within the range
-            if zone_data['min_month'] <= start_value <= zone_data['max_month'] \
-                    or zone_data['min_month'] <= end_value <= zone_data['max_month']:
+            if zone_data['min_month'] <= end_value and start_value <= zone_data['max_month']:
                 print(
                     f"Found the zone containing the year and month: {zone_count}")
                 # Process the split files within the zone
@@ -277,14 +277,17 @@ class QueryProcessor:
             min_idx, max_idx = \
                 zone_map.get_zone_map()['min_idx'], zone_map.get_zone_map()[
                     'max_idx']
-            if min_idx <= start <= max_idx or min_idx <= end <= max_idx:
+            if min_idx <= end and start <= max_idx:
                 print(
                     f"Found the zone containing the indexes: {zone_map.get_zone_count()}")
                 # Process the split files within the target zone
-                # TODO: fix issue of indexes out of bound passed to wrong zones
                 zone_indexes = self.get_zone_indexes(indexes, min_idx, max_idx)
+                # This zone has no indexes matched
+                if len(zone_indexes) == 0:
+                    continue
                 print("Range of indexes:", min(
                     zone_indexes), max(zone_indexes))
+
                 self.process_split_files(column_name, zone_map.get_zone_count(), str(
                     self.town), str(self.town), zone_indexes)
 
@@ -329,13 +332,16 @@ class QueryProcessor:
             min_idx, max_idx = \
                 zone_map.get_zone_map()['min_idx'], zone_map.get_zone_map()[
                     'max_idx']
-            if min_idx <= start <= max_idx or min_idx <= end <= max_idx:
+            if min_idx <= end and start <= max_idx:
                 print(
                     f"Found the zone containing the indexes: {zone_map.get_zone_count()}")
                 # Process the split files within the target zone
                 zone_indexes = self.get_zone_indexes(indexes, min_idx, max_idx)
+                if len(zone_indexes) == 0:
+                    continue
                 print("Range of indexes:", min(
                     zone_indexes), max(zone_indexes))
+
                 self.process_split_files(
                     column_name, zone_map.get_zone_count(), None, None, zone_indexes, True)
 
@@ -430,7 +436,7 @@ class QueryProcessor:
         directory = self.column_store.disk_folder
         file_path = os.path.join(
             directory, f"{column_name}_chunk_{zone_count}.txt")
-        lower_bound = zone_count * MAX_FILE_LINES
+        lower_bound = zone_count * self.max_file_lines
 
         # Sequential scan
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -438,7 +444,7 @@ class QueryProcessor:
                 content = file.readlines()
                 for index in indexes:
                     # Seek to the index positions
-                    offset = index - zone_count * MAX_FILE_LINES
+                    offset = index - zone_count * self.max_file_lines
                     # Process the lines from the index positions
                     # Don't -1 because index is already 0-based when reading from month file
                     line = content[offset]
@@ -450,13 +456,13 @@ class QueryProcessor:
 
                     if start <= value <= end:
                         # If lines_processed reaches MAX_FILE_LINES, close the current temporary file
-                        if self.lines_processed % MAX_FILE_LINES == 0:
+                        if self.lines_processed % self.max_file_lines == 0:
                             if self.temp_output_file:
                                 self.temp_output_file.close()
 
                             # Create a new temporary file
                             temp_output_file_path = os.path.join(
-                                self.buffer_folder, f"{column_name}_chunk_{self.lines_processed // MAX_FILE_LINES}.txt")
+                                self.buffer_folder, f"{column_name}_chunk_{self.lines_processed // self.max_file_lines}.txt")
                             self.temp_output_file = open(
                                 temp_output_file_path, 'w', encoding='utf-8')
 
@@ -471,13 +477,13 @@ class QueryProcessor:
 
                     if start <= value <= end:
                         # If lines_processed reaches MAX_FILE_LINES, close the current temporary file
-                        if self.lines_processed % MAX_FILE_LINES == 0:
+                        if self.lines_processed % self.max_file_lines == 0:
                             if self.temp_output_file:
                                 self.temp_output_file.close()
 
                             # Create a new temporary file
                             temp_output_file_path = os.path.join(
-                                self.buffer_folder, f"{column_name}_chunk_{self.lines_processed // MAX_FILE_LINES}.txt")
+                                self.buffer_folder, f"{column_name}_chunk_{self.lines_processed // self.max_file_lines}.txt")
                             self.temp_output_file = open(
                                 temp_output_file_path, 'w', encoding='utf-8')
 
@@ -487,7 +493,7 @@ class QueryProcessor:
                         self.lines_processed += 1
 
         self.num_buffer_folders = max(
-            self.num_buffer_folders, self.lines_processed // MAX_FILE_LINES)
+            self.num_buffer_folders, self.lines_processed // self.max_file_lines)
 
 
 def create_directory_if_not_exists(directory):
@@ -512,15 +518,18 @@ def output_to_csv(file_path: str, data: list):
         writer.writerow(data)
 
 
-def run(column_store: ColumnStore):
+def run(column_store: ColumnStore, max_file_lines=MAX_FILE_LINES):
     while True:
         print()
         text = 'Enter your matriculation number for processing [q to quit]: '
         matric_num = input(text).strip()
 
-        if matric_num == 'q':
+        if matric_num.lower() == 'q':
             print('System quitting...')
-            shutil.rmtree(BUFFER_FOLDER)
+            try:
+                shutil.rmtree(BUFFER_FOLDER)
+            except:
+                pass
             break
 
         """ 
@@ -557,11 +566,15 @@ def run(column_store: ColumnStore):
             continue
 
         start = time.time()
-        processor = QueryProcessor(year, month, town, column_store)
+        processor = QueryProcessor(
+            year, month, town, column_store, max_file_lines=max_file_lines)
         processor.process_year_and_month()
         processor.process_towns()
         data = processor.process_query(interested_column, interested_stat)
-        print(f"\nQuery time: {time.time() - start}s")
+        end = time.time()
+        time_taken = end - start
+        print(f"\nQuery time: {time_taken}s")
+
         create_directory_if_not_exists(OUTPUT_FOLDER)
         output_file_path = os.path.join(
             OUTPUT_FOLDER, f"ScanResult_{matric_num}.csv")
@@ -570,21 +583,21 @@ def run(column_store: ColumnStore):
         delete_all_files_in_directory(BUFFER_FOLDER)
 
 
-def main():
+def main(max_file_lines=MAX_FILE_LINES):
     columns_of_interest = [ColumnsOfInterest.TOWN.value, ColumnsOfInterest.MONTH.value,
                            ColumnsOfInterest.FLOOR_AREA_SQM.value, ColumnsOfInterest.RESALE_PRICE.value]
 
     column_store = ColumnStore(
-        INPUT_PATH, DISK_FOLDER, columns_of_interest)
+        INPUT_PATH, DISK_FOLDER, columns_of_interest, max_file_lines)
     column_store.process_csv()
 
-    zone_maps = column_store.get_zone_maps()
-    for column_name, zone_map_arr in zone_maps.items():
-        for zone_map in zone_map_arr:
-            print(
-                f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
+    # zone_maps = column_store.get_zone_maps()
+    # for column_name, zone_map_arr in zone_maps.items():
+    #     for zone_map in zone_map_arr:
+    #         print(
+    #             f"ZoneMap for column '{column_name}': {zone_map.get_zone_map()}")
 
-    run(column_store)
+    run(column_store, max_file_lines)
 
 
 if __name__ == "__main__":
