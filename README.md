@@ -9,5 +9,6 @@ python src/main.py
 ```
 
 2. Follow the instructions displayed on the command line to query the column-store.
+3. The output will then be generated in the `output` folder.
 
 ### By Group 8: Tey Kai Seong, Lee Juin and Ng Zhi Quan
